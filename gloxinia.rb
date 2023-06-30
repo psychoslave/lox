@@ -1,6 +1,12 @@
 #!/usr/bin/env ruby
 require 'readline'
 
+module Scanner
+  def tokens
+    self.scan(/[^\s]+/).lazy
+  end
+end
+
 class Gloxinia
   def initialize
     @repl_mode = false
@@ -22,7 +28,7 @@ class Gloxinia
   end
 
   def run(code)
-    puts code
+    puts code.extend(Scanner).tokens.to_a
   end
 
   def print_usage
