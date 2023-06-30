@@ -1,4 +1,7 @@
 #!/usr/bin/env ruby
+# A early stage stub of a Lox interpreter adapted along the reading of
+# Crafting Interpreters by Robert Nystrom
+# https://craftinginterpreters.com/contents.html
 require 'readline'
 
 module Scanner
@@ -7,16 +10,23 @@ module Scanner
   end
 end
 
+Notification = Struct.new(:method, :context, :code ) do
+  def ply
+    send(method, "error: #{context}: #{code}")
+  end
+end
+
 class Gloxinia
   def initialize
     @repl_mode = false
+    # Unless some not yet managed error occured, all is in steady state
     @steady = true
   end
 
   def run_file(filename)
     File.readlines(filename).each.with_index do |line, row|
       run line
-      abort("invalid code: #{filename}:#{row}: #{line}") unless @steady
+      Notification.new(:abort, "#{filename}:#{row+1}", line).ply unless @steady
     end
   end
 
@@ -25,7 +35,8 @@ class Gloxinia
     puts "Launching REPL...\n"
     while line = Readline.readline('> ', true) do
       run line
-      puts('invalid code') unless @steady
+      # Some error occured, we report that and bounce back in steady state
+      Notification.new(:puts, 'invalid line of code', line).ply unless @steady
       @steady = true
     end
   end
