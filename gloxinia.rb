@@ -10,20 +10,23 @@ end
 class Gloxinia
   def initialize
     @repl_mode = false
+    @steady = true
   end
 
   def run_file(filename)
-    File.readlines(filename).each do |line|
-        run line
+    File.readlines(filename).each.with_index do |line, row|
+      run line
+      abort("invalid code: #{filename}:#{row}: #{line}") unless @steady
     end
   end
 
   def run_repl
     @repl_mode = true
     puts "Launching REPL...\n"
-    # TODO: Implement REPL logic
-    while line = Readline.readline(?><<?\ , true) do
+    while line = Readline.readline('> ', true) do
       run line
+      puts('invalid code') unless @steady
+      @steady = true
     end
   end
 
