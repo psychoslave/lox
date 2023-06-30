@@ -1,4 +1,5 @@
 #!/usr/bin/env ruby
+require 'readline'
 
 class Gloxinia
   def initialize
@@ -6,21 +7,29 @@ class Gloxinia
   end
 
   def run_file(filename)
-    # TODO: Implement file execution logic
-    puts "Running file: #{filename}"
+    File.readlines(filename).each do |line|
+        run line
+    end
   end
 
   def run_repl
     @repl_mode = true
-    puts "Launching REPL..."
+    puts "Launching REPL...\n"
     # TODO: Implement REPL logic
+    while line = Readline.readline(?><<?\ , true) do
+      run line
+    end
+  end
+
+  def run(code)
+    puts code
   end
 
   def print_usage
     puts "Usage: gloxinia [filename]"
   end
 
-  def run(args)
+  def play(args)
     case args.length
     when 0
       run_repl
@@ -32,5 +41,5 @@ class Gloxinia
   end
 end
 
-Gloxinia.new.run(ARGV)
+Gloxinia.new.play(ARGV)
 
