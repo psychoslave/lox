@@ -50,7 +50,7 @@ Taxnomy = [
 
 class Scanner < StringScanner
   Morphemes = /\w+|[[:punct:]]/
-  Numeric = /\d+\.?\d*/
+  Numeric = /\A\d+(\.\d+)?\z/
   # Ignore leading spaces then capture next valid morphe if any
   def sip = self.scan(/\s+/).then{ self.scan(Numeric) || self.scan(Morphemes) }
 end
@@ -79,6 +79,7 @@ class Gloxinia
 
   def categorize(token)
     return :numeric if token.match?(Scanner::Numeric)
+    return :dysmorphism if token.match?(/\A\d/)
 
     [Brackets, Componing·operators, Relational·operators].each do |hash|
       hit = hash.keys.find { |key| hash[key].include?(token) }
