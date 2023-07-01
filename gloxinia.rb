@@ -49,7 +49,7 @@ Taxnomy = [
 ].reduce(&:+).compact
 
 class Scanner < StringScanner
-  Morphemes = /\w+|[[:punct:]]/
+  Morphemes = /\w+|[[:punct:]]+/
   Numeric = /\A\d+(\.\d+)?\z/
   # Ignore leading spaces then capture next valid morphe if any
   def sip = self.scan(/\s+/).then{ self.scan(Numeric) || self.scan(Morphemes) }
