@@ -3,6 +3,7 @@
 # Crafting Interpreters by Robert Nystrom
 # https://craftinginterpreters.com/contents.html
 require 'readline'
+require 'strscan'
 
 Brackets = {
    openening·parenthese: %i[(],
@@ -47,8 +48,11 @@ Taxnomy = [
   Brackets.keys, Syncategoremata, Componing·operators.keys, Relational·operators.keys
 ].reduce(&:+).compact
 
-module Scanner
-  def tokens = self.scan(/\w+|[[:punct:]]/).lazy
+class Scanner < StringScanner
+  Morphemes = /\w+|[[:punct:]]/
+  Numeric = /\d+\.?\d*/
+  # Ignore leading spaces then capture next valid morphe if any
+  def sip = self.scan(/\s+/).then{ self.scan(Numeric) || self.scan(Morphemes) }
 end
 
 Notification = Struct.new(:method, :context, :code ) do
@@ -56,7 +60,7 @@ Notification = Struct.new(:method, :context, :code ) do
 end
 
 Lexie = Struct.new *%i[type lexeme literal locus] do
-  def to_s = [type, lexeme, literal].join ' '
+  def to_s = [type, lexeme, literal, locus].join ': '
 end
 
 class Gloxinia
@@ -74,7 +78,8 @@ class Gloxinia
   end
 
   def categorize(token)
-    #TODO: check for string literal
+    return :numeric if token.match?(Scanner::Numeric)
+
     [Brackets, Componing·operators, Relational·operators].each do |hash|
       hit = hash.keys.find { |key| hash[key].include?(token) }
       return hit unless not hit
@@ -85,7 +90,6 @@ class Gloxinia
     #puts ">info: '#{token}' not in reserved words"
 
     return :identifier
-
   end
 
   def run_repl
@@ -100,10 +104,16 @@ class Gloxinia
   end
 
   def run(code, ordinate)
-    lexies = code.extend(Scanner).tokens.map { |token|
+    lexies = []
+    stream = Scanner.new(code)
+    until stream.eos? do
+      start, token, arrival = [stream.pos, stream.sip, stream.pos]
+      next if stream.eos? && token.nil?
       type = categorize(token.to_sym)
-      Lexie.new(type, token, token, ordinate)
-    }
+      denomination = token
+      locus = {abscissa: [start, arrival], ordinate:}
+      lexies.push Lexie.new(type, token, denomination, locus)
+    end
     lexies.each{puts _1}
   end
 
@@ -124,4 +134,3 @@ class Gloxinia
 end
 
 Gloxinia.new.play(ARGV)
-
