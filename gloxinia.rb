@@ -60,6 +60,10 @@ Relators = {
 Operators = [Relators.values, Compoundors.values].flatten
 
 Taxnomy = [
+  # A dyadee is a member of a pair, such as false and true in the veracity dyad
+  #
+  # An eschatophore, that is "end holder", is a sequence such as assignment
+  # End-of-Transmission character
   %i[identifier string number dyadee eschatophore],
   Brackets.keys, Syncategoremata, Compoundors.keys, Relators.keys
 ].reduce(&:+).compact
@@ -68,8 +72,42 @@ Taxnomy = [
 class Disloxator < StringScanner
   Morphemes = /\w+|[[:punct:]]/
   Numeric = /\A\d+(\.\d+)?\z/
+  def initialize(code, ordinate)
+    super code
+    @ordinate = ordinate
+  end
   # Ignore leading spaces then capture next valid morphe if any
   def sip = self.scan(/\s+/).then{ self.scan(Numeric) || self.scan(Morphemes) }
+
+  def categorize(token)
+    return :numeric if token.match?(Disloxator::Numeric)
+    return :dysmorphism if token.match?(/\A\d/)
+
+    [Brackets, Compoundors, Relators].each do |hash|
+      hit = hash.keys.find { |key| hash[key].include?(token) }
+      return hit unless not hit
+      #puts ">info: '#{token}' not in #{hash.values.flatten}"
+    end
+
+    return :syncategoreme if Syncategoremata.include?(token)
+    return :autogeneme if Autogenemes.include?(token)
+    #puts ">info: '#{token}' not in reserved words"
+
+    return :identifier
+  end
+
+  def lexies
+    lexies = []
+    until eos? do
+      start, token, arrival = [pos, sip, pos]
+      next if eos? && token.nil?
+      type = categorize(token.to_sym)
+      denomination = token
+      locus = {abscissa: [start, arrival], ordinate: @ordinate}
+      lexies.push Lexie.new(type, token, denomination, locus)
+    end
+    lexies
+  end
 end
 
 Notification = Struct.new(:method, :context, :code ) do
@@ -94,23 +132,6 @@ class Gloxinia
     end
   end
 
-  def categorize(token)
-    return :numeric if token.match?(Disloxator::Numeric)
-    return :dysmorphism if token.match?(/\A\d/)
-
-    [Brackets, Compoundors, Relators].each do |hash|
-      hit = hash.keys.find { |key| hash[key].include?(token) }
-      return hit unless not hit
-      #puts ">info: '#{token}' not in #{hash.values.flatten}"
-    end
-
-    return :syncategoreme if Syncategoremata.include?(token)
-    return :autogeneme if Autogenemes.include?(token)
-    #puts ">info: '#{token}' not in reserved words"
-
-    return :identifier
-  end
-
   def run_repl
     @repl_mode = true
     puts "Launching REPL...\n"
@@ -123,17 +144,7 @@ class Gloxinia
   end
 
   def run(code, ordinate)
-    lexies = []
-    stream = Disloxator.new(code)
-    until stream.eos? do
-      start, token, arrival = [stream.pos, stream.sip, stream.pos]
-      next if stream.eos? && token.nil?
-      type = categorize(token.to_sym)
-      denomination = token
-      locus = {abscissa: [start, arrival], ordinate:}
-      lexies.push Lexie.new(type, token, denomination, locus)
-    end
-    lexies.each{puts _1}
+    Disloxator.new(code, ordinate).lexies.each{puts _1}
   end
 
   def print_usage
