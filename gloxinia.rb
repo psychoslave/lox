@@ -11,12 +11,27 @@ Brackets = {
    openening·brace: %i[{],
    closing·brace: %i[}],
 }
+# Intrinsic terms whose denomination immediately gives the term used to refer to them.
+#
+# "Autogeneme" derives from "auto-", "-gen-" and -"eme", which respectively
+# conveys self-reference, production and fundamental structural unit.
+#
+# So it applies to any term that represents its own value or characteristic.
+Autogenemes = %i[false true nil]
+
+# Syncategoreme refers to words that do not have independent meaning on their
+# own but are necessary for the structure and function of a phrase.
+# These words are often considered "empty" or devoid of autonomous significant
+# content.
 Syncategoremata = %i[
-  and class else false fun for if nil or
-  print return super this true var while
+  and class else fun for if or
+  print return super this var while
 ]
-Componing·operators = {
+# Componing operators which glue one or more additional terms into a clause whose
+# denomination derives from all these assimilated components.
+Compoundors = {
   # binary infix ones
+  assignment: %i[= ←],
   subordination: %i[.],
   seriation: %i[,],
   subtraction: %i[-],
@@ -31,8 +46,9 @@ Componing·operators = {
   termination: %i[;],
 }
 
-Relational·operators = {
-  assignment: %i[= ←],
+# Relational operators whose denomination always lead to a veracity conclusion:
+# false, true.
+Relators = {
   difference: %i[!= ≠],
   equality: %i[== ≘],
   minimality: %i[<= ⩽],
@@ -41,15 +57,16 @@ Relational·operators = {
   underness: %i[<],
 }
 
-Operators = [Relational·operators.values, Componing·operators.values].flatten
+Operators = [Relators.values, Compoundors.values].flatten
 
 Taxnomy = [
   %i[identifier string number dyadee eschatophore],
-  Brackets.keys, Syncategoremata, Componing·operators.keys, Relational·operators.keys
+  Brackets.keys, Syncategoremata, Compoundors.keys, Relators.keys
 ].reduce(&:+).compact
 
-class Scanner < StringScanner
-  Morphemes = /\w+|[[:punct:]]+/
+# Holds everything useful for lexical analysis of Lox code
+class Disloxator < StringScanner
+  Morphemes = /\w+|[[:punct:]]/
   Numeric = /\A\d+(\.\d+)?\z/
   # Ignore leading spaces then capture next valid morphe if any
   def sip = self.scan(/\s+/).then{ self.scan(Numeric) || self.scan(Morphemes) }
@@ -78,16 +95,17 @@ class Gloxinia
   end
 
   def categorize(token)
-    return :numeric if token.match?(Scanner::Numeric)
+    return :numeric if token.match?(Disloxator::Numeric)
     return :dysmorphism if token.match?(/\A\d/)
 
-    [Brackets, Componing·operators, Relational·operators].each do |hash|
+    [Brackets, Compoundors, Relators].each do |hash|
       hit = hash.keys.find { |key| hash[key].include?(token) }
       return hit unless not hit
       #puts ">info: '#{token}' not in #{hash.values.flatten}"
     end
 
     return :syncategoreme if Syncategoremata.include?(token)
+    return :autogeneme if Autogenemes.include?(token)
     #puts ">info: '#{token}' not in reserved words"
 
     return :identifier
@@ -106,7 +124,7 @@ class Gloxinia
 
   def run(code, ordinate)
     lexies = []
-    stream = Scanner.new(code)
+    stream = Disloxator.new(code)
     until stream.eos? do
       start, token, arrival = [stream.pos, stream.sip, stream.pos]
       next if stream.eos? && token.nil?
