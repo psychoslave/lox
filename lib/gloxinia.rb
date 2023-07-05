@@ -6,9 +6,9 @@ require 'readline'
 require 'strscan'
 
 Brackets = {
-   openening·parenthese: %i[(],
+   opening·parenthese: %i[(],
    closing·parenthese: %i[)],
-   openening·brace: %i[{],
+   opening·brace: %i[{],
    closing·brace: %i[}],
 }
 # Intrinsic terms whose reference refers its own referent endoglossomatic
@@ -71,6 +71,8 @@ Compoundors = {
   addition: %i[+],
   division: %i[/ ÷],
   multiplication: %i[* ×],
+  conjunction: %i[&&],
+  disjunction: %i[||],
   # unary prefixed ones
   opposition: %i[-],
   negation: %i[~ ! ¬],
@@ -116,7 +118,7 @@ class Disloxator < StringScanner
     return :numeric if token.match?(Numeric)
     return :dysmorphism if token.match?(/\A\d/)
 
-    [Brackets, Compoundors, Relators].each do |hash|
+    [Brackets, Relators, Compoundors,].each do |hash|
       hit = hash.keys.find { |key| hash[key].include?(token) }
       return hit unless not hit
       #puts ">info: '#{token}' not in #{hash.values.flatten}"
@@ -158,8 +160,12 @@ end
 #
 # On its side "lexie", though less frequent, is an already established term
 # that conveys the same meaning unambigously with a close morphology.
-Lexie = Struct.new *%i[type lexeme literal locus] do
-  def to_s = [type, lexeme, literal, locus].join ': '
+#
+# For similar reason hereafter we use emblem in place of the more popular symbol
+# and referent rather than literal
+Lexie = Struct.new *%i[type emblem referent locus] do
+  def to_s = [type, emblem, referent, locus].join ': '
+  def to_h = {emblem:, type:}
 end
 
 class Gloxinia
@@ -205,4 +211,7 @@ class Gloxinia
   end
 end
 
-Gloxinia.new.play(ARGV)
+# Check if the library is being called as a script
+if $PROGRAM_NAME == __FILE__
+  Gloxinia.new.play(ARGV)
+end
