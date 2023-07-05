@@ -11,28 +11,61 @@ Brackets = {
    openening·brace: %i[{],
    closing·brace: %i[}],
 }
-# Intrinsic terms whose denomination immediately gives the term used to refer to them.
+# Intrinsic terms whose reference refers its own referent endoglossomatic
+# representation.
 #
 # "Autogeneme" derives from "auto-", "-gen-" and -"eme", which respectively
 # conveys self-reference, production and fundamental structural unit.
+
+# Alternatively the term autogennym where -nym conveys the notion of noun could
+# work just as well, with more emphasis on the specific type of involved entity.
 #
-# So it applies to any term that represents its own value or characteristic.
+# Or even more accurately, autoendoglossomaticolexicon might fit with the
+# meaning of its decomposition as auto-endo-glosso-matico-lex-icon left as an
+# exercise.
+#
+# Anyway it applies to any term that represents its own refent.
 Autogenemes = %i[false true nil]
 
 # Syncategoreme refers to words that do not have independent meaning on their
 # own but are necessary for the structure and function of a phrase.
 # These words are often considered "empty" or devoid of autonomous significant
 # content.
+#
+# In the context of programming languages, categorizing certain terms as
+# syncategorematic makes sense due to their role in structuring and controlling
+# the flow of the code.
+#
+# 1. Control flow: Keywords like "if," "else," and "while" modify the execution
+#    flow of the program, introducing conditional statements or loops.
+#
+# 2. Declaration and definition: Terms like "class," "fun," and "var" are used
+#    for declaring and defining entities in the program.
+#
+# 3. Modifiers and operators: Terms like "and," "or," and "super" serve as
+#    logical operators or modifiers, affecting the behavior or logic of
+#    expressions or statements.
+#
+# 4. Output and input: Keywords like "print" and "return" impact the output or
+#    values produced by the program.
+#
+# By categorizing these terms as syncategorematic, we highlight their role in
+# shaping the interpretation and behavior of the code, providing structural and
+# contextual information for program execution.
 Syncategoremata = %i[
   and class else fun for if or
   print return super this var while
 ]
+
 # Componing operators which glue one or more additional terms into a clause whose
-# denomination derives from all these assimilated components.
+# referent derives from all these assimilated components.
+#
+# Compounding involves the syntactic and semantic merging of expression
+# constituent parts to synthesize a coalescent referent.
 Compoundors = {
   # binary infix ones
   assignment: %i[= ←],
-  subordination: %i[.],
+  articulation: %i[.],
   seriation: %i[,],
   subtraction: %i[-],
   addition: %i[+],
@@ -46,7 +79,7 @@ Compoundors = {
   termination: %i[;],
 }
 
-# Relational operators whose denomination always lead to a veracity conclusion:
+# Relational operators whose referent always lead to a veracity conclusion:
 # false, true.
 Relators = {
   difference: %i[!= ≠],
@@ -59,10 +92,10 @@ Relators = {
 
 Operators = [Relators.values, Compoundors.values].flatten
 
-Taxnomy = [
-  # A dyadee is a member of a pair, such as false and true in the veracity dyad
+Taxonomy = [
+  # A dyadee is a member of a pair, such as false and true in the accordance dyad
   #
-  # An eschatophore, that is "end holder", is a sequence such as assignment
+  # An eschatophore, that is "end holder", is a sequence such as
   # End-of-Transmission character
   %i[identifier string number dyadee eschatophore],
   Brackets.keys, Syncategoremata, Compoundors.keys, Relators.keys
@@ -80,7 +113,7 @@ class Disloxator < StringScanner
   def sip = self.scan(/\s+/).then{ self.scan(Numeric) || self.scan(Morphemes) }
 
   def categorize(token)
-    return :numeric if token.match?(Disloxator::Numeric)
+    return :numeric if token.match?(Numeric)
     return :dysmorphism if token.match?(/\A\d/)
 
     [Brackets, Compoundors, Relators].each do |hash|
@@ -89,54 +122,63 @@ class Disloxator < StringScanner
       #puts ">info: '#{token}' not in #{hash.values.flatten}"
     end
 
-    return :syncategoreme if Syncategoremata.include?(token)
     return :autogeneme if Autogenemes.include?(token)
+    return :syncategoreme if Syncategoremata.include?(token)
     #puts ">info: '#{token}' not in reserved words"
 
     return :identifier
   end
 
+
   def lexies
-    lexies = []
-    until eos? do
+    return to_enum(__method__) unless block_given?
+
+    until eos?
       start, token, arrival = [pos, sip, pos]
       next if eos? && token.nil?
       type = categorize(token.to_sym)
-      denomination = token
-      locus = {abscissa: [start, arrival], ordinate: @ordinate}
-      lexies.push Lexie.new(type, token, denomination, locus)
+      referent = type == :autogeneme ? token : nil
+      locus = { abscissa: [start, arrival], ordinate: @ordinate }
+      yield Lexie.new(type, token, referent, locus)
     end
-    lexies
   end
+
 end
 
 Notification = Struct.new(:method, :context, :code ) do
   def ply = send(method, "error: #{context}: #{code}")
 end
 
+# Minimal unit of utterrance fragment relevant for lexical analysis.
+#
+# In compiler terminology, the same notion is often refered to as "lexeme".
+# However "lexeme" is highly polysemic, with radically different meanings
+# employed in lexicography, lexicology and morphology in addition to the one
+# used in informatics.
+#
+# On its side "lexie", though less frequent, is an already established term
+# that conveys the same meaning unambigously with a close morphology.
 Lexie = Struct.new *%i[type lexeme literal locus] do
   def to_s = [type, lexeme, literal, locus].join ': '
 end
 
 class Gloxinia
   def initialize
-    @repl_mode = false
     # Unless some not yet managed error occured, all is in steady state
     @steady = true
   end
 
   def run_file(filename)
     File.readlines(filename).each.with_index(1) do |line, row|
-      run line, row
+      run line, row rescue @steady = false
       Notification.new(:abort, "#{filename}:#{row}", line).ply unless @steady
     end
   end
 
   def run_repl
-    @repl_mode = true
     puts "Launching REPL...\n"
     while line = Readline.readline('> ', true) do
-      run line
+      run line rescue @steady = false
       # Some error occured, we report that and bounce back in steady state
       Notification.new(:puts, 'invalid line of code', line).ply unless @steady
       @steady = true
