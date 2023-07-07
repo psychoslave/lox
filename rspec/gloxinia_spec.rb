@@ -108,7 +108,7 @@ RSpec.describe Disloxator do
         { emblem: 'if', type: :syncategoreme },
         { emblem: '(', type: :opening·parenthese },
         { emblem: 'temperature', type: :identifier },
-        { emblem: '<', type: :LESS },
+        { emblem: '<', type: :hypopotency },
         { emblem: '0', type: :numeric },
         { emblem: ')', type: :closing·parenthese },
         { emblem: '{', type: :opening·brace },

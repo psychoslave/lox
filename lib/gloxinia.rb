@@ -4,6 +4,7 @@
 # https://craftinginterpreters.com/contents.html
 require 'readline'
 require 'strscan'
+require 'English'
 
 Brackets = {
    opening·parenthese: %i[(],
@@ -55,6 +56,7 @@ Autogenemes = %i[false true nil]
 Syncategoremata = %i[
   and class else fun for if or
   print return super this var while
+  // "
 ]
 
 # Componing operators which glue one or more additional terms into a clause whose
@@ -81,18 +83,25 @@ Compoundors = {
   termination: %i[;],
 }
 
-# Relational operators whose referent always lead to a veracity conclusion:
-# false, true.
+# Relational operators whose referent always lead to a binary judgment between
+# two referents: predicate of the former over the latter is either false or true.
 Relators = {
-  difference: %i[!= ≠],
-  equality: %i[== ≘],
-  minimality: %i[<= ⩽],
-  maximality: %i[>= ⩾],
-  exceedingness: %i[>],
-  underness: %i[<],
+  # Qualifying a distinct power
+  alterpotency: %i[!= ≠],
+  # Qualifying an identical power
+  equipotency: %i[== ≡],
+  # Qualifying a power that is under what surpass the latter referent
+  subepipotency: %i[<= ⩽],
+  # Qualifying a power that is above what fall behind the latter referent
+  epipenpotency: %i[>= ⩾],
+  # Qualifying a power that is above the latter referent
+  hyperpotency: %i[>],
+  # Qualifying a power that is under the latter referent
+  hypopotency: %i[<],
 }
 
 Operators = [Relators.values, Compoundors.values].flatten
+Sclereme = [Operators, Syncategoremata, Autogenemes].flatten
 
 Taxonomy = [
   # A dyadee is a member of a pair, such as false and true in the accordance dyad
@@ -102,54 +111,6 @@ Taxonomy = [
   %i[identifier string number dyadee eschatophore],
   Brackets.keys, Syncategoremata, Compoundors.keys, Relators.keys
 ].reduce(&:+).compact
-
-# Holds everything useful for lexical analysis of Lox code
-class Disloxator < StringScanner
-  Morphemes = /\w+|[[:punct:]]/
-  Numeric = /\A\d+(\.\d+)?\z/
-  def initialize(code, ordinate)
-    super code
-    @ordinate = ordinate
-  end
-  # Ignore leading spaces then capture next valid morphe if any
-  def sip = self.scan(/\s+/).then{ self.scan(Numeric) || self.scan(Morphemes) }
-
-  def categorize(token)
-    return :numeric if token.match?(Numeric)
-    return :dysmorphism if token.match?(/\A\d/)
-
-    [Brackets, Relators, Compoundors,].each do |hash|
-      hit = hash.keys.find { |key| hash[key].include?(token) }
-      return hit unless not hit
-      #puts ">info: '#{token}' not in #{hash.values.flatten}"
-    end
-
-    return :autogeneme if Autogenemes.include?(token)
-    return :syncategoreme if Syncategoremata.include?(token)
-    #puts ">info: '#{token}' not in reserved words"
-
-    return :identifier
-  end
-
-
-  def lexies
-    return to_enum(__method__) unless block_given?
-
-    until eos?
-      start, token, arrival = [pos, sip, pos]
-      next if eos? && token.nil?
-      type = categorize(token.to_sym)
-      referent = type == :autogeneme ? token : nil
-      locus = { abscissa: [start, arrival], ordinate: @ordinate }
-      yield Lexie.new(type, token, referent, locus)
-    end
-  end
-
-end
-
-Notification = Struct.new(:method, :context, :code ) do
-  def ply = send(method, "error: #{context}: #{code}")
-end
 
 # Minimal unit of utterrance fragment relevant for lexical analysis.
 #
@@ -161,11 +122,130 @@ end
 # On its side "lexie", though less frequent, is an already established term
 # that conveys the same meaning unambigously with a close morphology.
 #
-# For similar reason hereafter we use emblem in place of the more popular symbol
-# and referent rather than literal
+# For similar reasons hereafter we use "emblem" in place of the more populars
+# "token" or symbol and "referent" rather than "literal".
 Lexie = Struct.new *%i[type emblem referent locus] do
   def to_s = [type, emblem, referent, locus].join ': '
   def to_h = {emblem:, type:}
+end
+
+# Holds everything useful for lexical analysis of Lox code
+class Disloxator < StringScanner
+  Modulators = %q{// "}.split(' ')
+  Morphemes = /\w+|[[:punct:]]+/
+  Numeric = /\A\d+(\.\d+)?\z/
+  def initialize(code, ordinate)
+    super code
+    @ordinate = ordinate
+    # Modulator of code interpretation, that allows to apply a contextually
+    # pertaining construction.
+    #
+    # Exegesis is a specific approach within hermeneutics, the theory
+    # of interpretation that focuses on extracting or drawing out the meaning
+    # from a particular utterance.
+    @exegesis = :verbatim
+    # The lexie that was previously constructed
+    @antecessor = nil
+    # Storage to pile referents along their construction, such as multiline strings
+    @protolexie = ''
+  end
+  # Retrieve a single grapheme at a time
+  def sip = self.scan /./
+
+  def categorize(emblem)
+    return :numeric if emblem.match?(Numeric)
+    return :comment if emblem.match?(/\A\/\//)
+    return :dysmorphism if emblem.match?(/\A\d/)
+    return :string if emblem.match /"(?:\\"|[^"])*"/
+
+    [Brackets, Relators, Compoundors,].each do |hash|
+      hit = hash.keys.find { |key| hash[key].include?(emblem) }
+      return hit unless not hit
+      #puts ">info: '#{emblem}' not in #{hash.values.flatten}"
+    end
+
+    return :autogeneme if Autogenemes.include?(emblem)
+    return :syncategoreme if Syncategoremata.include?(emblem)
+    #puts ">info: '#{emblem}' not in reserved words"
+
+    return :identifier
+  end
+
+  # Returns which exegesis modality should be applied thereupon considering the
+  # given token, also taking implicitely @antecessor and current @exegesis as
+  # as current situation considerations.
+  def accommodate(emblem)
+    if @exegesis == :verbatim && emblem == '"'
+      return :quotational
+    end
+
+    if emblem == '/'
+      return :commentarial if sip == '/'
+      unscan
+      return :verbatim
+    end
+
+    return @exegesis
+  end
+
+  def lexize(emblem, start, arrival)
+    type = categorize(emblem.to_sym)
+    referent = type == :autogeneme ? emblem : nil
+    locus = { abscissa: [start, arrival], ordinate: @ordinate }
+    return Lexie.new(type, emblem, referent, locus)
+  end
+
+  def boundary?
+    due = sip
+    delimitations = /#{Operators.map(&:to_s).map { |op| Regexp.escape(op) }.join('|')}|\s|\n/
+    contiguous = [@protolexie, due].any?{_1.to_s.match?(delimitations)} || eos?
+    unscan if due
+    contiguous
+  end
+
+
+  def lexies
+    return to_enum(__method__) unless block_given?
+
+    start = pos
+    @protolexie = ''
+    while @protolexie.concat sip.to_s
+      #byebug if @protolexie == ';'
+      @exegesis = accommodate(@protolexie[-1])
+      case @exegesis
+      # The rest of the line is a comment that can be discarded
+      when :commentarial
+        terminate # Point to the end and clear matching data
+        @exegesis, term, @protolexie = :verbatim, @protolexie, ''
+        yield lexize term, start, pos
+
+      when :verbatim
+        # If this is a quotation mark and we are outside a quote
+        if boundary?
+          term, @protolexie = @protolexie, ''
+          skip /\s*/
+          yield lexize term, start, pos
+        end
+
+      # Within a quote, when didn’t reach a quotation mark yet, take all but that
+      when :quotational
+        @protolexie.concat(scan(/[^"]*/))
+        # note that exegesis is unchanged and nothin is yield
+        @protolexie.concat sip
+        if @protolexie[-1] == '"' && @protolexie.chomp.match(/\\*$/).to_s.size.even?
+          @exegesis, term, @protolexie = :verbatim, @protolexie, ''
+          yield lexize term, start, pos
+        end
+      end
+
+      break if eos?
+    end
+  end
+
+end
+
+Notification = Struct.new(:method, :context, :code ) do
+  def ply = send(method, "error: #{context}: #{code}")
 end
 
 class Gloxinia
@@ -176,7 +256,7 @@ class Gloxinia
 
   def run_file(filename)
     File.readlines(filename).each.with_index(1) do |line, row|
-      run line, row rescue @steady = false
+      run line, row rescue @steady = false; ado = $ERROR_INFO.message
       Notification.new(:abort, "#{filename}:#{row}", line).ply unless @steady
     end
   end
@@ -184,9 +264,9 @@ class Gloxinia
   def run_repl
     puts "Launching REPL...\n"
     while line = Readline.readline('> ', true) do
-      run line rescue @steady = false
+      run line rescue @steady = false; ado = $ERROR_INFO.message
       # Some error occured, we report that and bounce back in steady state
-      Notification.new(:puts, 'invalid line of code', line).ply unless @steady
+      Notification.new(:puts, "invalid line of code\n#{ado}", line).ply unless @steady
       @steady = true
     end
   end
