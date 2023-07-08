@@ -54,9 +54,10 @@ Autogenemes = %i[false true nil]
 # shaping the interpretation and behavior of the code, providing structural and
 # contextual information for program execution.
 Syncategoremata = %i[
+  " //
   and class else fun for if or
   print return super this var while
-  // "
+  †
 ]
 
 # Componing operators which glue one or more additional terms into a clause whose
@@ -91,16 +92,35 @@ Relators = {
   # Qualifying an identical power
   equipotency: %i[== ≡],
   # Qualifying a power that is under what surpass the latter referent
-  subepipotency: %i[<= ⩽],
+  subsurpotency: %i[<= ⩽],
   # Qualifying a power that is above what fall behind the latter referent
-  epipenpotency: %i[>= ⩾],
+  epipropotency: %i[>= ⩾],
   # Qualifying a power that is above the latter referent
-  hyperpotency: %i[>],
+  ultrapotency: %i[>],
   # Qualifying a power that is under the latter referent
-  hypopotency: %i[<],
+  infrapotency: %i[<],
 }
 
-Operators = [Relators.values, Compoundors.values].flatten
+# List of signs that open an interpretation ambiguity that can only be solved
+# by looking at the next one, the combination of both being replaceable by
+# the univocal sign provided as latter value.
+Ambiguators = {
+  '=': %w[= ≡],
+  '!': %w[= ≠],
+  '<': %w[= ⩽],
+  '>': %w[= ⩾],
+# The dagger usually indicates a footnote if an asterisk has already been used.
+# Asterisk is already heavily used in programming languages with various semantic
+# meanings including multiplication, exponentiation, pointer dereferencing,
+# unpacking argument lists, and wildcard matching.
+# That make obelus a suiter choice of comment introduction.
+  '/': %w[/ †],
+}
+
+Operators = [Relators.values, Compoundors.values].flatten!
+Delemitors = Operators.push(Brackets.values).flatten!.map do |op|
+  Regexp.escape(op.to_s)
+end
 Sclereme = [Operators, Syncategoremata, Autogenemes].flatten
 
 Taxonomy = [
@@ -141,11 +161,15 @@ class Disloxator < StringScanner
     # pertaining construction.
     #
     # Exegesis is a specific approach within hermeneutics, the theory
-    # of interpretation that focuses on extracting or drawing out the meaning
+    # of interpretation, that focuses on extracting or drawing out the meaning
     # from a particular utterance.
-    @exegesis = :verbatim
-    # The lexie that was previously constructed
-    @antecessor = nil
+    #
+    # The main interpretation is *allusive*, as it is chiefly a game of indirect
+    # references. Then *quotational* is only "almost" verbatim since both backslash
+    # and quotation mark have a special meaning in it. Finally, *commentarial*
+    # might have been a third explicited case, but within this implementation
+    # it proved more practical to treat it as an adjacent case of ambiguities.
+    @exegesis = :allusive
     # Storage to pile referents along their construction, such as multiline strings
     @protolexie = ''
   end
@@ -154,7 +178,7 @@ class Disloxator < StringScanner
 
   def categorize(emblem)
     return :numeric if emblem.match?(Numeric)
-    return :comment if emblem.match?(/\A\/\//)
+    return :comment if emblem.match?(/\A\/\/|\A†/)
     return :dysmorphism if emblem.match?(/\A\d/)
     return :string if emblem.match /"(?:\\"|[^"])*"/
 
@@ -172,17 +196,10 @@ class Disloxator < StringScanner
   end
 
   # Returns which exegesis modality should be applied thereupon considering the
-  # given token, also taking implicitely @antecessor and current @exegesis as
-  # as current situation considerations.
+  # given token, also taking implicitely @exegesis into consideration.
   def accommodate(emblem)
-    if @exegesis == :verbatim && emblem == '"'
+    if @exegesis == :allusive && emblem == '"'
       return :quotational
-    end
-
-    if emblem == '/'
-      return :commentarial if sip == '/'
-      unscan
-      return :verbatim
     end
 
     return @exegesis
@@ -197,7 +214,7 @@ class Disloxator < StringScanner
 
   def boundary?
     due = sip
-    delimitations = /#{Operators.map(&:to_s).map { |op| Regexp.escape(op) }.join('|')}|\s|\n/
+    delimitations = /#{Delemitors.join('|')}|\s|\n/
     contiguous = [@protolexie, due].any?{_1.to_s.match?(delimitations)} || eos?
     unscan if due
     contiguous
@@ -210,22 +227,27 @@ class Disloxator < StringScanner
     start = pos
     @protolexie = ''
     while @protolexie.concat sip.to_s
-      #byebug if @protolexie == ';'
       @exegesis = accommodate(@protolexie[-1])
       case @exegesis
-      # The rest of the line is a comment that can be discarded
-      when :commentarial
-        terminate # Point to the end and clear matching data
-        @exegesis, term, @protolexie = :verbatim, @protolexie, ''
-        yield lexize term, start, pos
+      when :allusive
+        next unless boundary?
 
-      when :verbatim
-        # If this is a quotation mark and we are outside a quote
-        if boundary?
-          term, @protolexie = @protolexie, ''
-          skip /\s*/
-          yield lexize term, start, pos
+        symbol = @protolexie.to_sym
+        if Ambiguators.keys.include? symbol
+          begin
+            complementary = Ambiguators[symbol].first
+            sequent, digraphic = (->(sign) {[sign, sign == complementary]})[sip]
+            @protolexie.concat(sequent) if digraphic
+          ensure
+            unscan if !digraphic && sequent.to_s
+          end
         end
+        # This is a comment, it will absorb the rest of the line
+        @protolexie.concat(scan(/.*/)) if @protolexie.match? /\A\/\/|†/
+
+        term, @protolexie = @protolexie, ''
+        skip /\s*/
+        yield lexize term, start, pos
 
       # Within a quote, when didn’t reach a quotation mark yet, take all but that
       when :quotational
@@ -233,7 +255,7 @@ class Disloxator < StringScanner
         # note that exegesis is unchanged and nothin is yield
         @protolexie.concat sip
         if @protolexie[-1] == '"' && @protolexie.chomp.match(/\\*$/).to_s.size.even?
-          @exegesis, term, @protolexie = :verbatim, @protolexie, ''
+          @exegesis, term, @protolexie = :allusive, @protolexie, ''
           yield lexize term, start, pos
         end
       end

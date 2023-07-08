@@ -38,6 +38,32 @@ RSpec.describe Disloxator do
     end
   end
 
+  describe 'Lonely-line and end-line comments' do
+    it 'returns single comment lexie for rest of line after // or †' do
+      code = <<~LOX
+        var number = 1; // some comment
+        print number; † Also with obelus
+        // lonely comment on its own line
+      LOX
+
+      expected_lexies = [
+        { emblem: 'var', type: :syncategoreme },
+        { emblem: 'number', type: :identifier },
+        { emblem: '=', type: :assignment },
+        { emblem: '1', type: :numeric },
+        { emblem: ';', type: :termination },
+        { emblem: '// some comment', type: :comment },
+        { emblem: 'print', type: :syncategoreme },
+        { emblem: 'number', type: :identifier },
+        { emblem: ';', type: :termination },
+        { emblem: '† Also with obelus', type: :comment },
+        { emblem: '// lonely comment on its own line', type: :comment },
+      ]
+
+      expect(lexer.new(code, nil).lexies.to_a.map(&:to_h)).to eq(expected_lexies)
+    end
+  end
+
   describe 'Arithmetic Operations' do
     it 'returns the lexies for the arithmetic operations code' do
       code = <<~LOX
@@ -108,7 +134,7 @@ RSpec.describe Disloxator do
         { emblem: 'if', type: :syncategoreme },
         { emblem: '(', type: :opening·parenthese },
         { emblem: 'temperature', type: :identifier },
-        { emblem: '<', type: :hypopotency },
+        { emblem: '<', type: :infrapotency },
         { emblem: '0', type: :numeric },
         { emblem: ')', type: :closing·parenthese },
         { emblem: '{', type: :opening·brace },
@@ -120,11 +146,11 @@ RSpec.describe Disloxator do
         { emblem: 'if', type: :syncategoreme },
         { emblem: '(', type: :opening·parenthese },
         { emblem: 'temperature', type: :identifier },
-        { emblem: '>=', type: :maximality },
+        { emblem: '>=', type: :epipropotency },
         { emblem: '0', type: :numeric },
         { emblem: '&&', type: :conjunction },
         { emblem: 'temperature', type: :identifier },
-        { emblem: '<', type: :underness },
+        { emblem: '<', type: :infrapotency },
         { emblem: '20', type: :numeric },
         { emblem: ')', type: :closing·parenthese },
         { emblem: '{', type: :opening·brace },
