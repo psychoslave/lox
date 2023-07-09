@@ -10,6 +10,16 @@ RSpec.describe Disloxator do
       expect(lexer.new(code, nil).lexies.to_a.map(&:lemma)).to eq(expected_lemmata)
     end
   end
+  describe 'Lone identifier' do
+    it 'returns the lexie of a lonely identifier that is not even followed by a termination sign' do
+      code = 'something'
+      expected_lexies = [
+        { emblem: 'something', type: :identifier },
+      ]
+
+      expect(lexer.new(code, nil).lexies.to_a.map(&:to_h)).to eq(expected_lexies)
+    end
+  end
   describe 'Hello World' do
     it 'returns the lexies for the Hello World code' do
       code = 'print "Hello, World!";'
