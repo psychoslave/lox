@@ -3,6 +3,13 @@ require_relative '../lib/gloxinia'
 RSpec.describe Disloxator do
   let(:lexer) { Disloxator }
 
+  describe 'Disambiguate' do
+    it 'returns associate univoque lemma to lexies starting ambiguously' do
+      code = '== != <= >= //'
+      expected_lemmata = %w[≡ ≠ ⩽ ⩾ †]
+      expect(lexer.new(code, nil).lexies.to_a.map(&:lemma)).to eq(expected_lemmata)
+    end
+  end
   describe 'Hello World' do
     it 'returns the lexies for the Hello World code' do
       code = 'print "Hello, World!";'

@@ -139,13 +139,13 @@ Taxonomy = [
 # employed in lexicography, lexicology and morphology in addition to the one
 # used in informatics.
 #
-# On its side "lexie", though less frequent, is an already established term
+# On its side "lexie", though less frequent, is an already established ter
 # that conveys the same meaning unambigously with a close morphology.
 #
 # For similar reasons hereafter we use "emblem" in place of the more populars
 # "token" or symbol and "referent" rather than "literal".
-Lexie = Struct.new *%i[type emblem referent locus] do
-  def to_s = [type, emblem, referent, locus].join ': '
+Lexie = Struct.new *%i[type emblem referent lemma locus] do
+  def to_s = [type, emblem, referent, lemma, locus].join ': '
   def to_h = {emblem:, type:}
 end
 
@@ -185,12 +185,10 @@ class Disloxator < StringScanner
     [Brackets, Relators, Compoundors,].each do |hash|
       hit = hash.keys.find { |key| hash[key].include?(emblem) }
       return hit unless not hit
-      #puts ">info: '#{emblem}' not in #{hash.values.flatten}"
     end
 
     return :autogeneme if Autogenemes.include?(emblem)
     return :syncategoreme if Syncategoremata.include?(emblem)
-    #puts ">info: '#{emblem}' not in reserved words"
 
     return :identifier
   end
@@ -208,10 +206,16 @@ class Disloxator < StringScanner
   def lexize(emblem, start, arrival)
     type = categorize(emblem.to_sym)
     referent = type == :autogeneme ? emblem : nil
+    # Simple lemmatisation, replacing ambiguous digraphs with univocal allomorph
+    lemma =
+      Ambiguators.keys.any?{emblem.start_with?(_1.to_s)} ?
+        emblem.sub(/\A../, Ambiguators[emblem[0].to_sym].last) :
+        emblem
     locus = { abscissa: [start, arrival], ordinate: @ordinate }
-    return Lexie.new(type, emblem, referent, locus)
+    return Lexie.new(type, emblem, referent, lemma, locus)
   end
 
+  # Return true if the current position is on the last grapheme of a lexie
   def boundary?
     due = sip
     delimitations = /#{Delemitors.join('|')}|\s|\n/
