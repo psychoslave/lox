@@ -145,7 +145,7 @@ Taxonomy = [
 # For similar reasons hereafter we use "emblem" in place of the more populars
 # "token" or symbol and "referent" rather than "literal".
 Lexie = Struct.new *%i[type emblem referent lemma locus] do
-  def to_s = [type, emblem, referent, lemma, locus].join ': '
+  def to_s = %{#{emblem}: \t#{type}\t flexion of "#{lemma}", standing for "#{referent}"\t at #{locus}}
   def to_h = {emblem:, type:}
 end
 
@@ -217,13 +217,13 @@ class Disloxator < StringScanner
 
   # Return true if the current position is on the last grapheme of a lexie
   def boundary?
+    return true if eos?
     due = sip
     delimitations = /#{Delemitors.join('|')}|\s|\n/
-    contiguous = [@protolexie, due].any?{_1.to_s.match?(delimitations)} || eos?
+    contiguous = [@protolexie[-1], due].any?{_1.to_s.match?(delimitations)}
     unscan if due
     contiguous
   end
-
 
   def lexies
     return to_enum(__method__) unless block_given?
@@ -282,15 +282,16 @@ class Gloxinia
 
   def run_file(filename)
     File.readlines(filename).each.with_index(1) do |line, row|
-      run line, row rescue @steady = false; ado = $ERROR_INFO.message
+      run line, row rescue begin @steady = false; ado = $ERROR_INFO.message end
       Notification.new(:abort, "#{filename}:#{row}", line).ply unless @steady
     end
   end
 
   def run_repl
     puts "Launching REPL...\n"
-    while line = Readline.readline('> ', true) do
-      run line rescue @steady = false; ado = $ERROR_INFO.message
+    ordinate = 0
+    while line = Readline.readline("#{ordinate.to_s.rjust(4, "0")}> ", true) do
+      run line, ordinate rescue begin @steady = false; ado = $ERROR_INFO.message end
       # Some error occured, we report that and bounce back in steady state
       Notification.new(:puts, "invalid line of code\n#{ado}", line).ply unless @steady
       @steady = true
