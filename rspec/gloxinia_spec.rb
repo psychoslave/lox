@@ -20,6 +20,23 @@ RSpec.describe Disloxator do
       expect(lexer.new(code, nil).lexies.to_a.map(&:to_h)).to eq(expected_lexies)
     end
   end
+  describe 'Lone ambiguator at end of line' do
+    it 'returns the lexie of a lonely operator even when its an ambiguator at end of line' do
+      code = <<~LOX
+        1 <
+        2;
+      LOX
+
+      expected_lexies = [
+        { emblem: '1', type: :numeric },
+        { emblem: '<', type: :infrapotency },
+        { emblem: '2', type: :numeric },
+        { emblem: ';', type: :termination },
+      ]
+
+      expect(lexer.new(code, nil).lexies.to_a.map(&:to_h)).to eq(expected_lexies)
+    end
+  end
   describe 'Hello World' do
     it 'returns the lexies for the Hello World code' do
       code = 'print "Hello, World!";'

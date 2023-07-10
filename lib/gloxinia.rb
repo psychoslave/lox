@@ -217,12 +217,8 @@ class Disloxator < StringScanner
 
   # Return true if the current position is on the last grapheme of a lexie
   def boundary?
-    return true if eos?
-    due = sip
     delimitations = /#{Delemitors.join('|')}|\s|\n/
-    contiguous = [@protolexie[-1], due].any?{_1.to_s.match?(delimitations)}
-    unscan if due
-    contiguous
+    [@protolexie[-1], rest[0]].any?{_1.to_s.match?(delimitations)} || eos?
   end
 
   def lexies
@@ -237,14 +233,11 @@ class Disloxator < StringScanner
         next unless boundary?
 
         symbol = @protolexie.to_sym
+        # if an ambiguator appears elsewhere than before an end of line
         if Ambiguators.keys.include? symbol
-          begin
-            complementary = Ambiguators[symbol].first
-            sequent, digraphic = (->(sign) {[sign, sign == complementary]})[sip]
-            @protolexie.concat(sequent) if digraphic
-          ensure
-            unscan if !digraphic && sequent.to_s
-          end
+          complementary = Ambiguators[symbol].first
+          sequent, digraphic = (->(sign) {[sign, sign == complementary]})[sip]
+          @protolexie.concat(sequent.to_s) unless sequent&.match?(/\s/)
         end
         # This is a comment, it will absorb the rest of the line
         @protolexie.concat(scan(/.*/)) if @protolexie.match? /\A\/\/|†/
@@ -258,6 +251,7 @@ class Disloxator < StringScanner
         @protolexie.concat(scan(/[^"]*/))
         # note that exegesis is unchanged and nothin is yield
         @protolexie.concat sip
+        # quotation mark without odd number of backslash escape characters?
         if @protolexie[-1] == '"' && @protolexie.chomp.match(/\\*$/).to_s.size.even?
           @exegesis, term, @protolexie = :allusive, @protolexie, ''
           yield lexize term, start, pos
