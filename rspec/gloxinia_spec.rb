@@ -10,11 +10,29 @@ RSpec.describe Disloxator do
       expect(lexer.new(code, nil).lexies.to_a.map(&:lemma)).to eq(expected_lemmata)
     end
   end
+
   describe 'Lone identifier' do
     it 'returns the lexie of a lonely identifier that is not even followed by a termination sign' do
       code = 'something'
       expected_lexies = [
         { emblem: 'something', type: :identifier },
+      ]
+
+      expect(lexer.new(code, nil).lexies.to_a.map(&:to_h)).to eq(expected_lexies)
+    end
+  end
+
+  describe 'Melt terms and operator sequences' do
+    it 'returns the lexie of each term although they are spacelessly agglutinated' do
+      code = <<~LOX
+        1<2;
+      LOX
+
+      expected_lexies = [
+        { emblem: '1', type: :numeric },
+        { emblem: '<', type: :infrapotency },
+        { emblem: '2', type: :numeric },
+        { emblem: ';', type: :termination },
       ]
 
       expect(lexer.new(code, nil).lexies.to_a.map(&:to_h)).to eq(expected_lexies)

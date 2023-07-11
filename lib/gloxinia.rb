@@ -232,12 +232,16 @@ class Disloxator < StringScanner
       when :allusive
         next unless boundary?
 
-        symbol = @protolexie.to_sym
+        symbol = @protolexie[-1].to_sym
         # if an ambiguator appears elsewhere than before an end of line
         if Ambiguators.keys.include? symbol
           complementary = Ambiguators[symbol].first
           sequent, digraphic = (->(sign) {[sign, sign == complementary]})[sip]
-          @protolexie.concat(sequent.to_s) unless sequent&.match?(/\s/)
+          if !digraphic && !sequent.nil?
+            unscan
+          else
+            @protolexie.concat(sequent.to_s)
+          end
         end
         # This is a comment, it will absorb the rest of the line
         @protolexie.concat(scan(/.*/)) if @protolexie.match? /\A\/\/|†/
@@ -249,9 +253,9 @@ class Disloxator < StringScanner
       # Within a quote, when didn’t reach a quotation mark yet, take all but that
       when :quotational
         @protolexie.concat(scan(/[^"]*/))
-        # note that exegesis is unchanged and nothin is yield
         @protolexie.concat sip
-        # quotation mark without odd number of backslash escape characters?
+        # wait for more string content unless some quotation mark without odd
+        # number of backslash escape characters was met
         if @protolexie[-1] == '"' && @protolexie.chomp.match(/\\*$/).to_s.size.even?
           @exegesis, term, @protolexie = :allusive, @protolexie, ''
           yield lexize term, start, pos
