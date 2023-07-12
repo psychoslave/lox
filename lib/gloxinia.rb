@@ -169,9 +169,9 @@ class Disloxator < StringScanner
     # and quotation mark have a special meaning in it. Finally, *commentarial*
     # might have been a third explicited case, but within this implementation
     # it proved more practical to treat it as an adjacent case of ambiguities.
-    @exegesis = :allusive
+    @@exegesis ||= :allusive
     # Storage to pile referents along their construction, such as multiline strings
-    @protolexie = ''
+    @@protolexie = '' unless @@exegesis == :quotational
   end
   # Retrieve a single grapheme at a time
   def sip = self.scan /./
@@ -179,7 +179,8 @@ class Disloxator < StringScanner
   def categorize(emblem)
     return :numeric if emblem.match?(Numeric)
     return :comment if emblem.match?(/\A\/\/|\A†/)
-    return :dysmorphism if emblem.match?(/\A\d/)
+    # anything that is out of volid lexical forms within Lox
+    return :apolexia if emblem.match?(/\A\d/)
     return :string if emblem.match /"(?:\\"|[^"])*"/
 
     [Brackets, Relators, Compoundors,].each do |hash|
@@ -194,13 +195,18 @@ class Disloxator < StringScanner
   end
 
   # Returns which exegesis modality should be applied thereupon considering the
-  # given token, also taking implicitely @exegesis into consideration.
+  # given token, also taking implicitely @@exegesis into consideration.
   def accommodate(emblem)
-    if @exegesis == :allusive && emblem == '"'
+    # wait for more string content unless some quotation mark without odd
+    # number of backslash escape characters was met
+    if @@exegesis == :quotational && @@protolexie.length > 1 && @@protolexie[-1] == '"' && @@protolexie.chomp.match(/\\*$/).to_s.size.even?
+      return :unquotational
+    end
+    if @@exegesis == :allusive && emblem == '"'
       return :quotational
     end
 
-    return @exegesis
+    return @@exegesis
   end
 
   def lexize(emblem, start, arrival)
@@ -218,21 +224,20 @@ class Disloxator < StringScanner
   # Return true if the current position is on the last grapheme of a lexie
   def boundary?
     delimitations = /#{Delemitors.join('|')}|\s|\n/
-    [@protolexie[-1], rest[0]].any?{_1.to_s.match?(delimitations)} || eos?
+    [@@protolexie[-1], rest[0]].any?{_1.to_s.match?(delimitations)} || eos?
   end
 
   def lexies
     return to_enum(__method__) unless block_given?
 
     start = pos
-    @protolexie = ''
-    while @protolexie.concat sip.to_s
-      @exegesis = accommodate(@protolexie[-1])
-      case @exegesis
+    while @@protolexie.concat sip.to_s
+      @@exegesis = accommodate(@@protolexie[-1])
+      case @@exegesis
       when :allusive
         next unless boundary?
 
-        symbol = @protolexie[-1].to_sym
+        symbol = @@protolexie[-1].to_sym
         # if an ambiguator appears elsewhere than before an end of line
         if Ambiguators.keys.include? symbol
           complementary = Ambiguators[symbol].first
@@ -240,26 +245,25 @@ class Disloxator < StringScanner
           if !digraphic && !sequent.nil?
             unscan
           else
-            @protolexie.concat(sequent.to_s)
+            @@protolexie.concat(sequent.to_s)
           end
         end
         # This is a comment, it will absorb the rest of the line
-        @protolexie.concat(scan(/.*/)) if @protolexie.match? /\A\/\/|†/
+        @@protolexie.concat(scan(/.*/)) if @@protolexie.match? /\A\/\/|†/
 
-        term, @protolexie = @protolexie, ''
+        term, @@protolexie = @@protolexie, ''
         skip /\s*/
         yield lexize term, start, pos
 
       # Within a quote, when didn’t reach a quotation mark yet, take all but that
       when :quotational
-        @protolexie.concat(scan(/[^"]*/))
-        @protolexie.concat sip
-        # wait for more string content unless some quotation mark without odd
-        # number of backslash escape characters was met
-        if @protolexie[-1] == '"' && @protolexie.chomp.match(/\\*$/).to_s.size.even?
-          @exegesis, term, @protolexie = :allusive, @protolexie, ''
+        @@protolexie.concat(scan(/[^"]*/))
+        @@protolexie.concat(?\n) if eos?
+        next if rest[0] == ?"
+      when :unquotational
+          skip /\s*/
+          @@exegesis, term, @@protolexie = :allusive, @@protolexie, ''
           yield lexize term, start, pos
-        end
       end
 
       break if eos?
